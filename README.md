@@ -5,6 +5,29 @@
 
 chi-prometheus is a prometheus collectors for [go-chi/chi](https://github.com/go-chi/chi).
 
+## Example metrics
+
+```
+# HELP chi_request_duration_milliseconds Time spent on the request partitioned by status code, method and HTTP path.
+# TYPE chi_request_duration_milliseconds histogram
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/healthz",service="test",le="300"} 1
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/healthz",service="test",le="1200"} 1
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/healthz",service="test",le="5000"} 1
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/healthz",service="test",le="+Inf"} 1
+chi_request_duration_milliseconds_sum{code="OK",method="GET",path="/healthz",service="test"} 1
+chi_request_duration_milliseconds_count{code="OK",method="GET",path="/healthz",service="test"} 1
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/users/{firstName}",service="test",le="300"} 2
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/users/{firstName}",service="test",le="1200"} 2
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/users/{firstName}",service="test",le="5000"} 2
+chi_request_duration_milliseconds_bucket{code="OK",method="GET",path="/users/{firstName}",service="test",le="+Inf"} 2
+chi_request_duration_milliseconds_sum{code="OK",method="GET",path="/users/{firstName}",service="test"} 14
+chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2
+# HELP chi_requests_total Number of HTTP requests partitioned by status code, method and HTTP path.
+# TYPE chi_requests_total counter
+chi_requests_total{code="OK",method="GET",path="/healthz",service="test"} 1
+chi_requests_total{code="OK",method="GET",path="/users/{firstName}",service="test"} 2
+```
+
 ## Usage
 
 chi-prometheus is uses as a middleware. It also supports both a default registry and a custom registry. You can see full examples in [middleware_test.go](middleware_test.go)
