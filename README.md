@@ -55,11 +55,7 @@ chi-prometheus is uses as a middleware. It also supports both a default registry
         t.Error(err)
     }
     m := chiprometheus.New("test")
-    for _, c := range m.Collectors() {
-        if err := reg.Register(c); err != nil {
-            return err
-        }
-    }
+    reg.MustRegister(m.Collectors()...)
     promh := promhttp.InstrumentMetricHandler(
         reg, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
     )
