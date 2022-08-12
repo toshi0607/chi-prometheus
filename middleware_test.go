@@ -71,8 +71,8 @@ func TestMiddleware_Handler(t *testing.T) {
 	})
 	r.Use(m.Handler)
 	r.Handle("/metrics", promhttp.Handler())
-	r.Get(`/healthz`, testHandler)
-	r.Get(`/users/{firstName}`, testHandler)
+	r.Get("/healthz", testHandler)
+	r.Get("/users/{firstName}", testHandler)
 
 	paths := [][]string{
 		{"healthz"},
@@ -141,7 +141,7 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 
 	r.Use(m.Handler)
 	r.Handle("/metrics", promh)
-	r.Get(`/healthz`, testHandler)
+	r.Get("/healthz", testHandler)
 
 	paths := [][]string{
 		{"healthz"},
