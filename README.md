@@ -37,7 +37,7 @@ chi-prometheus is uses as a middleware. It also supports both a default registry
 ```go
     r := chi.NewRouter()
     m := chiprometheus.New("test")
-	# use DefaultRegisterer
+    # use DefaultRegisterer
     m.MustRegisterDefault()
     r.Use(m.Handler)
     r.Handle("/metrics", promhttp.Handler())
@@ -48,8 +48,8 @@ chi-prometheus is uses as a middleware. It also supports both a default registry
 
 ```go
     r := chi.NewRouter()
-	# use your registry that works well with promauto
-	# see also https://github.com/prometheus/client_golang/issues/716#issuecomment-590282553
+    # use your registry that works well with promauto
+    # see also https://github.com/prometheus/client_golang/issues/716#issuecomment-590282553
     reg := prometheus.NewRegistry()
     if err := reg.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
         t.Error(err)
