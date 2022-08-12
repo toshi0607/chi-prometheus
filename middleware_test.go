@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	chiprometheus "toshi0607/chi-prometheus"
+	chiprometheus "github.com/toshi0607/chi-prometheus"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus"

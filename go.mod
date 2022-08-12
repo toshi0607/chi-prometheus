@@ -1,4 +1,4 @@
-module toshi0607/chi-prometheus
+module github.com/toshi0607/chi-prometheus
 
 go 1.19
 
