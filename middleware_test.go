@@ -1,17 +1,20 @@
 package chiprometheus_test
 
 import (
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
+
+	chiprometheus "toshi0607/chi-prometheus"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	chiprometheus "toshi0607/chi-prometheus"
 )
 
 const testHost = "http://localhost"
@@ -53,6 +56,7 @@ func TestMiddleware_Collectors(t *testing.T) {
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -105,10 +109,10 @@ func TestMiddleware_Handler(t *testing.T) {
 		t.Errorf("body should contain healthz count summary '%s'", healthzCount)
 	}
 	if strings.Contains(body, bobCount) {
-		t.Errorf("body should contain Bob count summary '%s'", bobCount)
+		t.Errorf("body should NOT contain Bob count summary '%s'", bobCount)
 	}
 	if strings.Contains(body, aliceCount) {
-		t.Errorf("body should contain Alice count summary '%s'", aliceCount)
+		t.Errorf("body should NOT contain Alice count summary '%s'", aliceCount)
 	}
 	if !strings.Contains(body, aggregatedCount) {
 		t.Errorf("body should contain first name count summary '%s'", aggregatedCount)
