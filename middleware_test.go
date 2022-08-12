@@ -129,11 +129,7 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 		t.Error(err)
 	}
 	m := chiprometheus.New("test")
-	for _, c := range m.Collectors() {
-		if err := reg.Register(c); err != nil {
-			t.Error(err)
-		}
-	}
+	reg.MustRegister(m.Collectors()...)
 	t.Cleanup(func() {
 		for _, c := range m.Collectors() {
 			prometheus.Unregister(c)
