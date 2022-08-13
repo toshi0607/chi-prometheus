@@ -2,6 +2,9 @@ package chiprometheus
 
 import (
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -10,12 +13,14 @@ import (
 )
 
 var (
-	defaultBuckets = []float64{300, 1200, 5000}
+	bucketsConfig = []float64{300, 1200, 5000}
 )
 
 const (
-	RequestsCollectorName = "chi_requests_total"
-	LatencyCollectorName  = "chi_request_duration_milliseconds"
+	// EnvChiPrometheusLatencyBuckets represents an environment variable, which is formatted like "100,200,300,400" as string
+	EnvChiPrometheusLatencyBuckets = "CHI_PROMETHEUS_LATENCY_BUCKETS"
+	RequestsCollectorName          = "chi_requests_total"
+	LatencyCollectorName           = "chi_request_duration_milliseconds"
 )
 
 // Middleware is a handler that exposes prometheus metrics for the number of requests,
@@ -25,8 +30,25 @@ type Middleware struct {
 	latency  *prometheus.HistogramVec
 }
 
+func setBucket() {
+	var buckets []float64
+	conf, ok := os.LookupEnv(EnvChiPrometheusLatencyBuckets)
+	if ok {
+		for _, v := range strings.Split(conf, ",") {
+			f64v, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				panic(err)
+			}
+			buckets = append(buckets, f64v)
+		}
+		bucketsConfig = buckets
+	}
+}
+
 // New returns a new prometheus middleware for the provided service name.
 func New(name string) *Middleware {
+	setBucket()
+
 	var m Middleware
 	m.requests = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -39,7 +61,7 @@ func New(name string) *Middleware {
 		Name:        LatencyCollectorName,
 		Help:        "Time spent on the request partitioned by status code, method and HTTP path.",
 		ConstLabels: prometheus.Labels{"service": name},
-		Buckets:     defaultBuckets,
+		Buckets:     bucketsConfig,
 	}, []string{"code", "method", "path"})
 
 	return &m

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ import (
 const testHost = "http://localhost"
 
 func TestMiddleware_MustRegisterDefault(t *testing.T) {
-	t.Run("must panic without collectors", func(t *testing.T) {
+	t.Run("without collectors", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Errorf("must have panicked")
@@ -30,7 +31,7 @@ func TestMiddleware_MustRegisterDefault(t *testing.T) {
 		m.MustRegisterDefault()
 	})
 
-	t.Run("must not panic with collectors", func(t *testing.T) {
+	t.Run("with collectors", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r != nil {
 				t.Errorf("must not have panicked")
@@ -56,30 +57,12 @@ func TestMiddleware_Collectors(t *testing.T) {
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
 	w.WriteHeader(http.StatusOK)
 }
 
-func TestMiddleware_Handler(t *testing.T) {
-	r := chi.NewRouter()
-	m := chiprometheus.New("test")
-	m.MustRegisterDefault()
-	t.Cleanup(func() {
-		for _, c := range m.Collectors() {
-			prometheus.Unregister(c)
-		}
-	})
-	r.Use(m.Handler)
-	r.Handle("/metrics", promhttp.Handler())
-	r.Get("/healthz", testHandler)
-	r.Get("/users/{firstName}", testHandler)
-
-	paths := [][]string{
-		{"healthz"},
-		{"users", "bob"},
-		{"users", "alice"},
-		{"metrics"},
-	}
+func makeRequest(t *testing.T, r *chi.Mux, paths [][]string) string {
+	t.Helper()
 	rec := httptest.NewRecorder()
 	for _, p := range paths {
 		u, err := url.JoinPath(testHost, p...)
@@ -92,34 +75,64 @@ func TestMiddleware_Handler(t *testing.T) {
 		}
 		r.ServeHTTP(rec, req)
 	}
-	body := rec.Body.String()
+	return rec.Body.String()
+}
 
-	if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
-		t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
-	}
-	if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
-		t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
+func TestMiddleware_Handler(t *testing.T) {
+	tests := map[string]struct {
+		body string
+		want bool
+	}{
+		"request header": {chiprometheus.RequestsCollectorName, true},
+		"latency header": {chiprometheus.LatencyCollectorName, true},
+		"bob":            {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`, false},
+		"alice":          {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`, false},
+		"path variable":  {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2`, true},
 	}
 
-	healthzCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/healthz",service="test"} 1`
-	bobCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`
-	aliceCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`
-	aggregatedCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2`
-	if !strings.Contains(body, healthzCount) {
-		t.Errorf("body should contain healthz count summary '%s'", healthzCount)
+	r := chi.NewRouter()
+	m := chiprometheus.New("test")
+	m.MustRegisterDefault()
+	t.Cleanup(func() {
+		for _, c := range m.Collectors() {
+			prometheus.Unregister(c)
+		}
+	})
+	r.Use(m.Handler)
+	r.Handle("/metrics", promhttp.Handler())
+	r.Get("/healthz", testHandler)
+	r.Get("/users/{firstName}", testHandler)
+	paths := [][]string{
+		{"healthz"},
+		{"users", "bob"},
+		{"users", "alice"},
+		{"metrics"},
 	}
-	if strings.Contains(body, bobCount) {
-		t.Errorf("body should NOT contain Bob count summary '%s'", bobCount)
-	}
-	if strings.Contains(body, aliceCount) {
-		t.Errorf("body should NOT contain Alice count summary '%s'", aliceCount)
-	}
-	if !strings.Contains(body, aggregatedCount) {
-		t.Errorf("body should contain first name count summary '%s'", aggregatedCount)
+	got := makeRequest(t, r, paths)
+
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if tt.want && !strings.Contains(got, tt.body) {
+				t.Fatalf("body should contain %s", tt.body)
+			} else if !tt.want && strings.Contains(got, tt.body) {
+				t.Fatalf("body should NOT contain %s", tt.body)
+			}
+		})
 	}
 }
 
 func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
+	tests := map[string]struct {
+		want string
+	}{
+		"request header": {chiprometheus.RequestsCollectorName},
+		"latency header": {chiprometheus.LatencyCollectorName},
+		"bob":            {"promhttp_metric_handler_requests_total"},
+		"alice":          {"go_goroutines"},
+	}
+
 	r := chi.NewRouter()
 	reg := prometheus.NewRegistry()
 	if err := reg.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
@@ -138,40 +151,94 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 	promh := promhttp.InstrumentMetricHandler(
 		reg, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
 	)
-
 	r.Use(m.Handler)
 	r.Handle("/metrics", promh)
 	r.Get("/healthz", testHandler)
-
 	paths := [][]string{
 		{"healthz"},
 		{"metrics"},
 	}
-	rec := httptest.NewRecorder()
-	for _, p := range paths {
-		u, err := url.JoinPath(testHost, p...)
-		if err != nil {
-			t.Error(err)
-		}
-		req, err := http.NewRequest("GET", u, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		r.ServeHTTP(rec, req)
-	}
-	body := rec.Body.String()
+	got := makeRequest(t, r, paths)
 
-	if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
-		t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if !strings.Contains(got, tt.want) {
+				t.Fatalf("body should contain %s", tt.want)
+			}
+		})
 	}
-	if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
-		t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
-	}
+}
 
-	if !strings.Contains(body, "promhttp_metric_handler_requests_total") {
-		t.Error("body should contain promhttp_metric_handler_requests_total from ProcessCollector")
-	}
-	if !strings.Contains(body, "go_goroutines") {
-		t.Errorf("body should contain Go runtime metrics from GoCollector")
-	}
+func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
+	key := chiprometheus.EnvChiPrometheusLatencyBuckets
+
+	t.Run("with invalid env", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("must have panicked")
+			}
+		}()
+		if err := os.Setenv(key, "invalid value"); err != nil {
+			t.Fatalf("failed to set %s", key)
+		}
+		t.Cleanup(func() { _ = os.Unsetenv(key) })
+		chiprometheus.New("test")
+	})
+
+	t.Run("with valid env", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("must not have panicked")
+			}
+		}()
+
+		tests := map[string]struct {
+			body string
+			want bool
+		}{
+			"le 101":  {`path="/healthz",service="test",le="101"`, true},
+			"le 201":  {`path="/healthz",service="test",le="201"`, true},
+			"le +Inf": {`path="/healthz",service="test",le="+Inf"`, true},
+			// default values should be overwritten
+			"le 300":  {`path="/healthz",service="test",le="300"`, false},
+			"le 1200": {`path="/healthz",service="test",le="1200"`, false},
+			"le 5000": {`path="/healthz",service="test",le="1200"`, false},
+		}
+
+		if err := os.Setenv(key, "101,201"); err != nil {
+			t.Fatalf("failed to set %s", key)
+		}
+		t.Cleanup(func() { _ = os.Unsetenv(key) })
+
+		r := chi.NewRouter()
+		m := chiprometheus.New("test")
+		m.MustRegisterDefault()
+		t.Cleanup(func() {
+			for _, c := range m.Collectors() {
+				prometheus.Unregister(c)
+			}
+		})
+		r.Use(m.Handler)
+		r.Handle("/metrics", promhttp.Handler())
+		r.Get("/healthz", testHandler)
+		paths := [][]string{
+			{"healthz"},
+			{"metrics"},
+		}
+		got := makeRequest(t, r, paths)
+
+		for name, tt := range tests {
+			tt := tt
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				if tt.want && !strings.Contains(got, tt.body) {
+					t.Fatalf("body should contain %s", tt.body)
+				} else if !tt.want && strings.Contains(got, tt.body) {
+					t.Fatalf("body should NOT contain %s", tt.body)
+				}
+			})
+		}
+	})
 }
