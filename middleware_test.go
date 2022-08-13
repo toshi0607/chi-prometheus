@@ -21,7 +21,7 @@ import (
 const testHost = "http://localhost"
 
 func TestMiddleware_MustRegisterDefault(t *testing.T) {
-	t.Run("must panic without collectors", func(t *testing.T) {
+	t.Run("without collectors", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
 				t.Errorf("must have panicked")
@@ -31,7 +31,7 @@ func TestMiddleware_MustRegisterDefault(t *testing.T) {
 		m.MustRegisterDefault()
 	})
 
-	t.Run("must not panic with collectors", func(t *testing.T) {
+	t.Run("with collectors", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r != nil {
 				t.Errorf("must not have panicked")
@@ -179,70 +179,96 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 
 func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 	key := chiprometheus.EnvChiPrometheusLatencyBuckets
-	if err := os.Setenv(key, "101,201"); err != nil {
-		t.Fatalf("failed to set %s", key)
-	}
-	t.Cleanup(func() { _ = os.Unsetenv(key) })
 
-	r := chi.NewRouter()
-	m := chiprometheus.New("test")
-	m.MustRegisterDefault()
-	t.Cleanup(func() {
-		for _, c := range m.Collectors() {
-			prometheus.Unregister(c)
+	t.Run("with invalid env", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("must have panicked")
+			}
+		}()
+		if err := os.Setenv(key, "invalid value"); err != nil {
+			t.Fatalf("failed to set %s", key)
+		}
+		t.Cleanup(func() { _ = os.Unsetenv(key) })
+		chiprometheus.New("test")
+	})
+
+	t.Run("with valid env", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("must not have panicked")
+			}
+		}()
+		if err := os.Setenv(key, "invalid value"); err != nil {
+			t.Fatalf("failed to set %s", key)
+		}
+		t.Cleanup(func() { _ = os.Unsetenv(key) })
+
+		if err := os.Setenv(key, "101,201"); err != nil {
+			t.Fatalf("failed to set %s", key)
+		}
+		t.Cleanup(func() { _ = os.Unsetenv(key) })
+
+		r := chi.NewRouter()
+		m := chiprometheus.New("test")
+		m.MustRegisterDefault()
+		t.Cleanup(func() {
+			for _, c := range m.Collectors() {
+				prometheus.Unregister(c)
+			}
+		})
+		r.Use(m.Handler)
+		r.Handle("/metrics", promhttp.Handler())
+		r.Get("/healthz", testHandler)
+
+		paths := [][]string{
+			{"healthz"},
+			{"metrics"},
+		}
+		rec := httptest.NewRecorder()
+		for _, p := range paths {
+			u, err := url.JoinPath(testHost, p...)
+			if err != nil {
+				t.Error(err)
+			}
+			req, err := http.NewRequest("GET", u, nil)
+			if err != nil {
+				t.Error(err)
+			}
+			r.ServeHTTP(rec, req)
+		}
+		body := rec.Body.String()
+
+		if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
+			t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
+		}
+		if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
+			t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
+		}
+
+		healthzCount101 := `path="/healthz",service="test",le="101"`
+		healthzCount201 := `path="/healthz",service="test",le="201"`
+		healthzCountInf := `path="/healthz",service="test",le="+Inf"`
+		healthzCount300 := `path="/healthz",service="test",le="300"`
+		healthzCount1200 := `path="/healthz",service="test",le="1200"`
+		healthzCount5000 := `path="/healthz",service="test",le="5000"`
+		if !strings.Contains(body, healthzCount101) {
+			t.Errorf("body should contain healthz count summary '%s'", healthzCount101)
+		}
+		if !strings.Contains(body, healthzCount201) {
+			t.Errorf("body should contain healthz count summary '%s'", healthzCount201)
+		}
+		if !strings.Contains(body, healthzCountInf) {
+			t.Errorf("body should contain healthz count summary '%s'", healthzCountInf)
+		}
+		if strings.Contains(body, healthzCount300) {
+			t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount300)
+		}
+		if strings.Contains(body, healthzCount1200) {
+			t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount1200)
+		}
+		if strings.Contains(body, healthzCount5000) {
+			t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount5000)
 		}
 	})
-	r.Use(m.Handler)
-	r.Handle("/metrics", promhttp.Handler())
-	r.Get("/healthz", testHandler)
-
-	paths := [][]string{
-		{"healthz"},
-		{"metrics"},
-	}
-	rec := httptest.NewRecorder()
-	for _, p := range paths {
-		u, err := url.JoinPath(testHost, p...)
-		if err != nil {
-			t.Error(err)
-		}
-		req, err := http.NewRequest("GET", u, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		r.ServeHTTP(rec, req)
-	}
-	body := rec.Body.String()
-
-	if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
-		t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
-	}
-	if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
-		t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
-	}
-
-	healthzCount101 := `path="/healthz",service="test",le="101"`
-	healthzCount201 := `path="/healthz",service="test",le="201"`
-	healthzCountInf := `path="/healthz",service="test",le="+Inf"`
-	healthzCount300 := `path="/healthz",service="test",le="300"`
-	healthzCount1200 := `path="/healthz",service="test",le="1200"`
-	healthzCount5000 := `path="/healthz",service="test",le="5000"`
-	if !strings.Contains(body, healthzCount101) {
-		t.Errorf("body should contain healthz count summary '%s'", healthzCount101)
-	}
-	if !strings.Contains(body, healthzCount201) {
-		t.Errorf("body should contain healthz count summary '%s'", healthzCount201)
-	}
-	if !strings.Contains(body, healthzCountInf) {
-		t.Errorf("body should contain healthz count summary '%s'", healthzCountInf)
-	}
-	if strings.Contains(body, healthzCount300) {
-		t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount300)
-	}
-	if strings.Contains(body, healthzCount1200) {
-		t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount1200)
-	}
-	if strings.Contains(body, healthzCount5000) {
-		t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount5000)
-	}
 }
