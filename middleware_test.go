@@ -56,9 +56,12 @@ func TestMiddleware_Collectors(t *testing.T) {
 	}
 }
 
-func testHandler(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
-	w.WriteHeader(http.StatusOK)
+func testHandler(t *testing.T) http.HandlerFunc {
+	t.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}
 }
 
 func makeRequest(t *testing.T, r *chi.Mux, paths [][]string) string {
@@ -100,8 +103,8 @@ func TestMiddleware_Handler(t *testing.T) {
 	})
 	r.Use(m.Handler)
 	r.Handle("/metrics", promhttp.Handler())
-	r.Get("/healthz", testHandler)
-	r.Get("/users/{firstName}", testHandler)
+	r.Get("/healthz", testHandler(t))
+	r.Get("/users/{firstName}", testHandler(t))
 	paths := [][]string{
 		{"healthz"},
 		{"users", "bob"},
@@ -153,7 +156,7 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 	)
 	r.Use(m.Handler)
 	r.Handle("/metrics", promh)
-	r.Get("/healthz", testHandler)
+	r.Get("/healthz", testHandler(t))
 	paths := [][]string{
 		{"healthz"},
 		{"metrics"},
@@ -222,7 +225,7 @@ func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 		})
 		r.Use(m.Handler)
 		r.Handle("/metrics", promhttp.Handler())
-		r.Get("/healthz", testHandler)
+		r.Get("/healthz", testHandler(t))
 		paths := [][]string{
 			{"healthz"},
 			{"metrics"},
