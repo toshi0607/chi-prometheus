@@ -72,6 +72,17 @@ chi-prometheus is used as a middleware. It also supports both a default registry
     r.Get("/healthz", [YOUR HandlerFunc])
 ```
 
+### Configuration
+
+Latency histogram bucket is configurable with `CHI_PROMETHEUS_LATENCY_BUCKETS`. Default values are `300, 1200, 5000` (milliseconds).
+
+You can override them as follows;
+
+```shell
+# comma separated string value
+CHI_PROMETHEUS_LATENCY_BUCKETS="100,200,300,400"
+```
+
 ## Install
 
 ```console
