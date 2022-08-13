@@ -57,7 +57,7 @@ func TestMiddleware_Collectors(t *testing.T) {
 }
 
 func testHandler(w http.ResponseWriter, r *http.Request) {
-	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
+	time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -120,6 +120,15 @@ func TestMiddleware_Handler(t *testing.T) {
 }
 
 func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
+	tests := map[string]struct {
+		want string
+	}{
+		"request header": {chiprometheus.RequestsCollectorName},
+		"latency header": {chiprometheus.LatencyCollectorName},
+		"bob":            {"promhttp_metric_handler_requests_total"},
+		"alice":          {"go_goroutines"},
+	}
+
 	r := chi.NewRouter()
 	reg := prometheus.NewRegistry()
 	if err := reg.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{})); err != nil {
@@ -138,7 +147,6 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 	promh := promhttp.InstrumentMetricHandler(
 		reg, promhttp.HandlerFor(reg, promhttp.HandlerOpts{}),
 	)
-
 	r.Use(m.Handler)
 	r.Handle("/metrics", promh)
 	r.Get("/healthz", testHandler)
@@ -159,20 +167,16 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 		}
 		r.ServeHTTP(rec, req)
 	}
-	body := rec.Body.String()
+	got := rec.Body.String()
 
-	if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
-		t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
-	}
-	if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
-		t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
-	}
-
-	if !strings.Contains(body, "promhttp_metric_handler_requests_total") {
-		t.Error("body should contain promhttp_metric_handler_requests_total from ProcessCollector")
-	}
-	if !strings.Contains(body, "go_goroutines") {
-		t.Errorf("body should contain Go runtime metrics from GoCollector")
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if !strings.Contains(got, tt.want) {
+				t.Fatalf("body should contain %s", tt.want)
+			}
+		})
 	}
 }
 
