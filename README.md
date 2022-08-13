@@ -8,7 +8,7 @@
 
 ## Description
 
-chi-prometheus is a prometheus collectors for [go-chi/chi](https://github.com/go-chi/chi).
+chi-prometheus is a Prometheus collectors for [go-chi/chi](https://github.com/go-chi/chi).
 
 ## Example metrics
 
@@ -35,7 +35,7 @@ chi_requests_total{code="OK",method="GET",path="/users/{firstName}",service="tes
 
 ## Usage
 
-chi-prometheus is uses as a middleware. It also supports both a default registry and a custom registry. You can see full examples in [middleware_test.go](middleware_test.go)
+chi-prometheus is used as a middleware. It also supports both a default registry and a custom registry. You can see full examples in [middleware_test.go](middleware_test.go)
 
 ### Default registry
 
@@ -77,6 +77,25 @@ chi-prometheus is uses as a middleware. It also supports both a default registry
 ```console
 $ go get github.com/toshi0607/chi-prometheus
 ```
+
+## Comparison
+
+There are great prior implementations for similar use cases.
+
+### [zbindenren/negroni-prometheus](https://github.com/zbindenren/negroni-prometheus)
+
+This is a router-agnostic Prometheus middleware implementation for an HTTP server. It is not actively developed and is archived by the owner.
+
+### [766b/chi-prometheus](https://github.com/766b/chi-prometheus)
+
+This is a Prometheus middleware taking advantage of a [chi middleware](https://github.com/go-chi/chi/tree/master/middleware) library for chi. It is not actively developed, and I had to newly support the following features.
+
+- Go Modules
+- Custom registry
+- New features of [prometheus/client_golang](https://github.com/prometheus/client_golang)
+- Deleting the previous default codes (non-aggregation collector for paths, such as `/users/{firstName}`) 
+
+So I decided to implement a new one instead of forking and adding some tweaks.
 
 ## Licence
 
