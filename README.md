@@ -1,5 +1,10 @@
 # chi-prometheus
-![build](https://github.com/toshi0607/chi-prometheus/actions/workflows/test.yml/badge.svg) ![coverage](coverage.svg)
+
+[![GoDoc](https://pkg.go.dev/badge/github.com/toshi0607/chi-prometheus.svg)](https://pkg.go.dev/github.com/toshi0607/chi-prometheus)
+[![License](https://img.shields.io/github/license/toshi0607/chi-prometheus.svg?style=flat-square)](https://github.com/toshi0607/chi-prometheus/blob/master/LICENSE)
+[![Release](https://img.shields.io/github/v/release/toshi0607/chi-prometheus?include_prereleases&style=flat-square)](https://github.com/toshi0607/chi-prometheus/releases)
+![build](https://github.com/toshi0607/chi-prometheus/actions/workflows/test.yml/badge.svg)
+![coverage](coverage.svg)
 
 ## Description
 

@@ -1,4 +1,4 @@
-name: Go
+name: Build
 
 on:
   push:
@@ -16,6 +16,5 @@ jobs:
         uses: golangci/golangci-lint-action@v3
       - name: Test
         run: go test -v ./... -coverprofile=coverage.out
-      -
+      - name: Test coverage
         uses: k1LoW/octocov-action@v0
-
