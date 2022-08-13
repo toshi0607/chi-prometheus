@@ -199,10 +199,19 @@ func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 				t.Errorf("must not have panicked")
 			}
 		}()
-		if err := os.Setenv(key, "invalid value"); err != nil {
-			t.Fatalf("failed to set %s", key)
+
+		tests := map[string]struct {
+			body string
+			want bool
+		}{
+			"le 101":  {`path="/healthz",service="test",le="101"`, true},
+			"le 201":  {`path="/healthz",service="test",le="201"`, true},
+			"le +Inf": {`path="/healthz",service="test",le="+Inf"`, true},
+			// default values should be overwritten
+			"le 300":  {`path="/healthz",service="test",le="300"`, false},
+			"le 1200": {`path="/healthz",service="test",le="1200"`, false},
+			"le 5000": {`path="/healthz",service="test",le="1200"`, false},
 		}
-		t.Cleanup(func() { _ = os.Unsetenv(key) })
 
 		if err := os.Setenv(key, "101,201"); err != nil {
 			t.Fatalf("failed to set %s", key)
@@ -237,38 +246,18 @@ func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 			}
 			r.ServeHTTP(rec, req)
 		}
-		body := rec.Body.String()
+		got := rec.Body.String()
 
-		if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
-			t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
-		}
-		if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
-			t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
-		}
-
-		healthzCount101 := `path="/healthz",service="test",le="101"`
-		healthzCount201 := `path="/healthz",service="test",le="201"`
-		healthzCountInf := `path="/healthz",service="test",le="+Inf"`
-		healthzCount300 := `path="/healthz",service="test",le="300"`
-		healthzCount1200 := `path="/healthz",service="test",le="1200"`
-		healthzCount5000 := `path="/healthz",service="test",le="5000"`
-		if !strings.Contains(body, healthzCount101) {
-			t.Errorf("body should contain healthz count summary '%s'", healthzCount101)
-		}
-		if !strings.Contains(body, healthzCount201) {
-			t.Errorf("body should contain healthz count summary '%s'", healthzCount201)
-		}
-		if !strings.Contains(body, healthzCountInf) {
-			t.Errorf("body should contain healthz count summary '%s'", healthzCountInf)
-		}
-		if strings.Contains(body, healthzCount300) {
-			t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount300)
-		}
-		if strings.Contains(body, healthzCount1200) {
-			t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount1200)
-		}
-		if strings.Contains(body, healthzCount5000) {
-			t.Errorf("body should NOT contain healthz count summary '%s'", healthzCount5000)
+		for name, tt := range tests {
+			tt := tt
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				if tt.want && !strings.Contains(got, tt.body) {
+					t.Fatalf("body should contain %s", tt.body)
+				} else if !tt.want && strings.Contains(got, tt.body) {
+					t.Fatalf("body should NOT contain %s", tt.body)
+				}
+			})
 		}
 	})
 }
