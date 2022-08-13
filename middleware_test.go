@@ -61,6 +61,23 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func makeRequest(t *testing.T, r *chi.Mux, paths [][]string) string {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	for _, p := range paths {
+		u, err := url.JoinPath(testHost, p...)
+		if err != nil {
+			t.Error(err)
+		}
+		req, err := http.NewRequest("GET", u, nil)
+		if err != nil {
+			t.Error(err)
+		}
+		r.ServeHTTP(rec, req)
+	}
+	return rec.Body.String()
+}
+
 func TestMiddleware_Handler(t *testing.T) {
 	tests := map[string]struct {
 		body string
@@ -85,26 +102,13 @@ func TestMiddleware_Handler(t *testing.T) {
 	r.Handle("/metrics", promhttp.Handler())
 	r.Get("/healthz", testHandler)
 	r.Get("/users/{firstName}", testHandler)
-
 	paths := [][]string{
 		{"healthz"},
 		{"users", "bob"},
 		{"users", "alice"},
 		{"metrics"},
 	}
-	rec := httptest.NewRecorder()
-	for _, p := range paths {
-		u, err := url.JoinPath(testHost, p...)
-		if err != nil {
-			t.Error(err)
-		}
-		req, err := http.NewRequest("GET", u, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		r.ServeHTTP(rec, req)
-	}
-	got := rec.Body.String()
+	got := makeRequest(t, r, paths)
 
 	for name, tt := range tests {
 		tt := tt
@@ -150,24 +154,11 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 	r.Use(m.Handler)
 	r.Handle("/metrics", promh)
 	r.Get("/healthz", testHandler)
-
 	paths := [][]string{
 		{"healthz"},
 		{"metrics"},
 	}
-	rec := httptest.NewRecorder()
-	for _, p := range paths {
-		u, err := url.JoinPath(testHost, p...)
-		if err != nil {
-			t.Error(err)
-		}
-		req, err := http.NewRequest("GET", u, nil)
-		if err != nil {
-			t.Error(err)
-		}
-		r.ServeHTTP(rec, req)
-	}
-	got := rec.Body.String()
+	got := makeRequest(t, r, paths)
 
 	for name, tt := range tests {
 		tt := tt
@@ -232,24 +223,11 @@ func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 		r.Use(m.Handler)
 		r.Handle("/metrics", promhttp.Handler())
 		r.Get("/healthz", testHandler)
-
 		paths := [][]string{
 			{"healthz"},
 			{"metrics"},
 		}
-		rec := httptest.NewRecorder()
-		for _, p := range paths {
-			u, err := url.JoinPath(testHost, p...)
-			if err != nil {
-				t.Error(err)
-			}
-			req, err := http.NewRequest("GET", u, nil)
-			if err != nil {
-				t.Error(err)
-			}
-			r.ServeHTTP(rec, req)
-		}
-		got := rec.Body.String()
+		got := makeRequest(t, r, paths)
 
 		for name, tt := range tests {
 			tt := tt
