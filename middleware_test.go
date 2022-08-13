@@ -62,6 +62,17 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestMiddleware_Handler(t *testing.T) {
+	tests := map[string]struct {
+		body string
+		want bool
+	}{
+		"request header": {chiprometheus.RequestsCollectorName, true},
+		"latency header": {chiprometheus.LatencyCollectorName, true},
+		"bob":            {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`, false},
+		"alice":          {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`, false},
+		"path variable":  {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2`, true},
+	}
+
 	r := chi.NewRouter()
 	m := chiprometheus.New("test")
 	m.MustRegisterDefault()
@@ -93,30 +104,18 @@ func TestMiddleware_Handler(t *testing.T) {
 		}
 		r.ServeHTTP(rec, req)
 	}
-	body := rec.Body.String()
+	got := rec.Body.String()
 
-	if !strings.Contains(body, chiprometheus.RequestsCollectorName) {
-		t.Errorf("body should contain request total entry '%s'", chiprometheus.RequestsCollectorName)
-	}
-	if !strings.Contains(body, chiprometheus.LatencyCollectorName) {
-		t.Errorf("body should contain request duration entry '%s'", chiprometheus.LatencyCollectorName)
-	}
-
-	healthzCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/healthz",service="test"} 1`
-	bobCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`
-	aliceCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`
-	aggregatedCount := `chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2`
-	if !strings.Contains(body, healthzCount) {
-		t.Errorf("body should contain healthz count summary '%s'", healthzCount)
-	}
-	if strings.Contains(body, bobCount) {
-		t.Errorf("body should NOT contain Bob count summary '%s'", bobCount)
-	}
-	if strings.Contains(body, aliceCount) {
-		t.Errorf("body should NOT contain Alice count summary '%s'", aliceCount)
-	}
-	if !strings.Contains(body, aggregatedCount) {
-		t.Errorf("body should contain first name count summary '%s'", aggregatedCount)
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if tt.want && !strings.Contains(got, tt.body) {
+				t.Fatalf("body should contain %s", tt.body)
+			} else if !tt.want && strings.Contains(got, tt.body) {
+				t.Fatalf("body should NOT contain %s", tt.body)
+			}
+		})
 	}
 }
 
