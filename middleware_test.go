@@ -88,9 +88,10 @@ func TestMiddleware_Handler(t *testing.T) {
 	}{
 		"request header": {chiprometheus.RequestsCollectorName, true},
 		"latency header": {chiprometheus.LatencyCollectorName, true},
-		"bob":            {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`, false},
-		"alice":          {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`, false},
 		"path variable":  {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2`, true},
+		// specific path values should be omitted
+		"bob":   {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`, false},
+		"alice": {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`, false},
 	}
 
 	r := chi.NewRouter()
@@ -130,10 +131,10 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 	tests := map[string]struct {
 		want string
 	}{
-		"request header": {chiprometheus.RequestsCollectorName},
-		"latency header": {chiprometheus.LatencyCollectorName},
-		"bob":            {"promhttp_metric_handler_requests_total"},
-		"alice":          {"go_goroutines"},
+		"request":    {chiprometheus.RequestsCollectorName},
+		"latency":    {chiprometheus.LatencyCollectorName},
+		"process":    {"promhttp_metric_handler_requests_total"},
+		"go runtime": {"go_goroutines"},
 	}
 
 	r := chi.NewRouter()
