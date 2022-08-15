@@ -21,6 +21,8 @@ import (
 const testHost = "http://localhost"
 
 func TestMiddleware_MustRegisterDefault(t *testing.T) {
+	t.Parallel()
+
 	t.Run("without collectors", func(t *testing.T) {
 		defer func() {
 			if r := recover(); r == nil {
@@ -48,6 +50,8 @@ func TestMiddleware_MustRegisterDefault(t *testing.T) {
 }
 
 func TestMiddleware_Collectors(t *testing.T) {
+	t.Parallel()
+
 	m := chiprometheus.New("test")
 	want := 2
 	got := len(m.Collectors())
@@ -128,6 +132,8 @@ func TestMiddleware_Handler(t *testing.T) {
 }
 
 func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
+	t.Parallel()
+
 	tests := map[string]struct {
 		want string
 	}{
