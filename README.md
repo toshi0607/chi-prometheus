@@ -33,6 +33,10 @@ chi_requests_total{code="200",method="GET",path="/users/{firstName}",service="te
 chi_requests_total{code="404",method="GET",path="/healthz",service="test"} 1
 ```
 
+## Requirement
+
+chi-prometheus only works with [go-chi/chi](https://github.com/go-chi/chi). Though you can set the middleware for other routers (multiplexers) including [http.ServeMux](https://pkg.go.dev/net/http#ServeMux), nothing happens.
+
 ## Usage
 
 chi-prometheus is used as a middleware. It also supports both a default registry and a custom registry. You can see full examples in [middleware_test.go](middleware_test.go)
