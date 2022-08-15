@@ -68,7 +68,7 @@ func testHandler(t *testing.T, code int) http.HandlerFunc {
 	}
 }
 
-func makeRequest(t *testing.T, r *chi.Mux, paths [][]string) string {
+func makeRequest(t *testing.T, h http.Handler, paths [][]string) string {
 	t.Helper()
 	rec := httptest.NewRecorder()
 	for _, p := range paths {
@@ -80,7 +80,7 @@ func makeRequest(t *testing.T, r *chi.Mux, paths [][]string) string {
 		if err != nil {
 			t.Error(err)
 		}
-		r.ServeHTTP(rec, req)
+		h.ServeHTTP(rec, req)
 	}
 	return rec.Body.String()
 }
@@ -252,4 +252,49 @@ func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestNonChiRouter(t *testing.T) {
+	tests := map[string]struct {
+		body string
+		want bool
+	}{
+		"process":    {"promhttp_metric_handler_requests_total", true},
+		"go runtime": {"go_goroutines", true},
+		// chi-prometheus metrics are skipped even when properly initialized
+		"request": {chiprometheus.RequestsCollectorName, false},
+		"latency": {chiprometheus.LatencyCollectorName, false},
+	}
+
+	m := chiprometheus.New("test")
+	m.MustRegisterDefault()
+	t.Cleanup(func() {
+		for _, c := range m.Collectors() {
+			prometheus.Unregister(c)
+		}
+	})
+
+	r := http.NewServeMux()
+	r.Handle("/test", m.Handler(testHandler(t, http.StatusOK)))
+	r.Handle("/metrics", promhttp.Handler())
+	testServer := httptest.NewServer(r)
+	defer testServer.Close()
+
+	paths := [][]string{
+		{"test"},
+		{"metrics"},
+	}
+	got := makeRequest(t, r, paths)
+
+	for name, tt := range tests {
+		tt := tt
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if tt.want && !strings.Contains(got, tt.body) {
+				t.Fatalf("body should contain %s", tt.body)
+			} else if !tt.want && strings.Contains(got, tt.body) {
+				t.Fatalf("body should NOT contain %s", tt.body)
+			}
+		})
+	}
 }

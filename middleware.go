@@ -75,10 +75,12 @@ func (m Middleware) Handler(next http.Handler) http.Handler {
 
 		next.ServeHTTP(ww, r)
 
-		rp := chi.RouteContext(r.Context()).RoutePattern()
-		since := float64(time.Since(start).Milliseconds())
-		m.requests.WithLabelValues(strconv.Itoa(ww.Status()), r.Method, rp).Inc()
-		m.latency.WithLabelValues(strconv.Itoa(ww.Status()), r.Method, rp).Observe(since)
+		if rctx := chi.RouteContext(r.Context()); rctx != nil {
+			rp := rctx.RoutePattern()
+			since := float64(time.Since(start).Milliseconds())
+			m.requests.WithLabelValues(strconv.Itoa(ww.Status()), r.Method, rp).Inc()
+			m.latency.WithLabelValues(strconv.Itoa(ww.Status()), r.Method, rp).Observe(since)
+		}
 	}
 	return http.HandlerFunc(fn)
 }
