@@ -77,8 +77,8 @@ func (m Middleware) Handler(next http.Handler) http.Handler {
 
 		rp := chi.RouteContext(r.Context()).RoutePattern()
 		since := float64(time.Since(start).Milliseconds())
-		m.requests.WithLabelValues(http.StatusText(ww.Status()), r.Method, rp).Inc()
-		m.latency.WithLabelValues(http.StatusText(ww.Status()), r.Method, rp).Observe(since)
+		m.requests.WithLabelValues(strconv.Itoa(ww.Status()), r.Method, rp).Inc()
+		m.latency.WithLabelValues(strconv.Itoa(ww.Status()), r.Method, rp).Observe(since)
 	}
 	return http.HandlerFunc(fn)
 }
