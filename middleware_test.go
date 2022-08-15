@@ -88,7 +88,7 @@ func TestMiddleware_Handler(t *testing.T) {
 	}{
 		"request header": {chiprometheus.RequestsCollectorName, true},
 		"latency header": {chiprometheus.LatencyCollectorName, true},
-		"path variable":  {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/{firstName}",service="test"} 2`, true},
+		"path variable":  {`chi_request_duration_milliseconds_count{code="200",method="GET",path="/users/{firstName}",service="test"} 2`, true},
 		// specific path values should be omitted
 		"bob":   {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`, false},
 		"alice": {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`, false},
