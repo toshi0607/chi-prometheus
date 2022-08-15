@@ -60,11 +60,11 @@ func TestMiddleware_Collectors(t *testing.T) {
 	}
 }
 
-func testHandler(t *testing.T) http.HandlerFunc {
+func testHandler(t *testing.T, code int) http.HandlerFunc {
 	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(code)
 	}
 }
 
@@ -93,9 +93,10 @@ func TestMiddleware_Handler(t *testing.T) {
 		"request header": {chiprometheus.RequestsCollectorName, true},
 		"latency header": {chiprometheus.LatencyCollectorName, true},
 		"path variable":  {`chi_request_duration_milliseconds_count{code="200",method="GET",path="/users/{firstName}",service="test"} 2`, true},
+		"404":            {`chi_requests_total{code="404",method="GET",path="/healthz",service="test"} 1`, true},
 		// specific path values should be omitted
-		"bob":   {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/bob",service="test"} 1`, false},
-		"alice": {`chi_request_duration_milliseconds_count{code="OK",method="GET",path="/users/alice",service="test"} 1`, false},
+		"bob":   {`chi_request_duration_milliseconds_count{code="200",method="GET",path="/users/bob",service="test"} 1`, false},
+		"alice": {`chi_request_duration_milliseconds_count{code="200",method="GET",path="/users/alice",service="test"} 1`, false},
 	}
 
 	r := chi.NewRouter()
@@ -108,8 +109,8 @@ func TestMiddleware_Handler(t *testing.T) {
 	})
 	r.Use(m.Handler)
 	r.Handle("/metrics", promhttp.Handler())
-	r.Get("/healthz", testHandler(t))
-	r.Get("/users/{firstName}", testHandler(t))
+	r.Get("/healthz", testHandler(t, http.StatusNotFound))
+	r.Get("/users/{firstName}", testHandler(t, http.StatusOK))
 	paths := [][]string{
 		{"healthz"},
 		{"users", "bob"},
@@ -163,7 +164,7 @@ func TestMiddleware_HandlerWithCustomRegistry(t *testing.T) {
 	)
 	r.Use(m.Handler)
 	r.Handle("/metrics", promh)
-	r.Get("/healthz", testHandler(t))
+	r.Get("/healthz", testHandler(t, http.StatusOK))
 	paths := [][]string{
 		{"healthz"},
 		{"metrics"},
@@ -232,7 +233,7 @@ func TestMiddleware_HandlerWithBucketEnv(t *testing.T) {
 		})
 		r.Use(m.Handler)
 		r.Handle("/metrics", promhttp.Handler())
-		r.Get("/healthz", testHandler(t))
+		r.Get("/healthz", testHandler(t, http.StatusOK))
 		paths := [][]string{
 			{"healthz"},
 			{"metrics"},
