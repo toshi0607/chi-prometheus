@@ -21,11 +21,11 @@ chi_request_duration_milliseconds_bucket{code="200",method="GET",path="/users/{f
 chi_request_duration_milliseconds_bucket{code="200",method="GET",path="/users/{firstName}",service="test",le="+Inf"} 2
 chi_request_duration_milliseconds_sum{code="200",method="GET",path="/users/{firstName}",service="test"} 4
 chi_request_duration_milliseconds_count{code="200",method="GET",path="/users/{firstName}",service="test"} 2
-chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="300"} 0
-chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="1200"} 0
-chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="5000"} 0
+chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="300"} 1
+chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="1200"} 1
+chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="5000"} 1
 chi_request_duration_milliseconds_bucket{code="404",method="GET",path="/healthz",service="test",le="+Inf"} 1
-chi_request_duration_milliseconds_sum{code="404",method="GET",path="/healthz",service="test"} 9339
+chi_request_duration_milliseconds_sum{code="404",method="GET",path="/healthz",service="test"} 1
 chi_request_duration_milliseconds_count{code="404",method="GET",path="/healthz",service="test"} 1
 # HELP chi_requests_total Number of HTTP requests partitioned by status code, method and HTTP path.
 # TYPE chi_requests_total counter
