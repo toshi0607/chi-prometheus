@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/go-chi/chi/v5 v5.0.7
-	github.com/prometheus/client_golang v1.13.0
+	github.com/prometheus/client_golang v1.13.1
 )
 
 require (
