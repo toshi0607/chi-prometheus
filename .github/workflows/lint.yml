@@ -3,6 +3,7 @@ on:
     paths:
       - '**.go'
       - '**.yml'
+      - 'go.mod'
 jobs:
   golangci-lint:
     runs-on: ubuntu-latest
