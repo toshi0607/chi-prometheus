@@ -6,18 +6,11 @@ on:
       - 'go.mod'
 jobs:
   golangci-lint:
-    permissions:
-      checks: write
-      contents: read
-      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v3
       - name: golangci-lint
-        uses: reviewdog/action-golangci-lint@v2
+        uses: golangci/golangci-lint-action@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          golangci_lint_flags: "--config=.golangci.yml"
-          level: warning
-          reporter: github-pr-review
+          version: v1.53
