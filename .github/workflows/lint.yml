@@ -6,6 +6,10 @@ on:
       - 'go.mod'
 jobs:
   golangci-lint:
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
