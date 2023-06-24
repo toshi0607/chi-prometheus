@@ -5,6 +5,7 @@ on:
     paths:
       - '**.go'
       - '**.yml'
+      - 'go.mod'
 
 jobs:
   build:
