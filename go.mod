@@ -3,7 +3,7 @@ module github.com/toshi0607/chi-prometheus
 go 1.26
 
 require (
-	github.com/go-chi/chi/v5 v5.3.0
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/prometheus/client_golang v1.23.2
 )
 
