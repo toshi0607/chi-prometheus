@@ -45,7 +45,6 @@ func setBucket() {
 	}
 }
 
-// New returns a new prometheus middleware for the provided service name.
 func New(name string) *Middleware {
 	setBucket()
 
